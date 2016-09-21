@@ -48,7 +48,7 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
 	return
 }
 
-func notFoundHandler(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
+func notFoundHandler(l *net.TCPConn, m *Message) *Message {
 	if m.IsConfirmable() {
 		return &Message{
 			Type: Acknowledgement,
@@ -58,17 +58,17 @@ func notFoundHandler(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
 	return nil
 }
 
-var _ = Handler(&ServeMux{})
+//var _ = Handler(&ServeMux{})
 
 // ServeCOAP handles a single COAP message.  The message arrives from
 // the given listener having originated from the given UDPAddr.
-func (mux *ServeMux) ServeCOAP(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
+func (mux *ServeMux) ServeCOAP(l *net.TCPConn, a *net.TCPAddr, m *Message) *Message {
 	h, _ := mux.match(m.PathString())
 	if h == nil {
 		h, _ = funcHandler(notFoundHandler), ""
 	}
 	// TODO:  Rewrite path?
-	return h.ServeCOAP(l, a, m)
+	return h.ServeCOAP(l, m)
 }
 
 // Handle configures a handler for the given path.
@@ -89,6 +89,6 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 
 // HandleFunc configures a handler for the given path.
 func (mux *ServeMux) HandleFunc(pattern string,
-	f func(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message) {
+	f func(l *net.TCPConn, m *Message) *Message) {
 	mux.Handle(pattern, FuncHandler(f))
 }

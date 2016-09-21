@@ -18,18 +18,18 @@ const (
 
 // Conn is a CoAP client connection.
 type Conn struct {
-	conn *net.UDPConn
+	conn *net.TCPConn
 	buf  []byte
 }
 
 // Dial connects a CoAP client.
 func Dial(n, addr string) (*Conn, error) {
-	uaddr, err := net.ResolveUDPAddr(n, addr)
+	uaddr, err := net.ResolveTCPAddr(n, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := net.DialUDP("udp", nil, uaddr)
+	s, err := net.DialTCP("tcp", nil, uaddr)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func Dial(n, addr string) (*Conn, error) {
 
 // Send a message.  Get a response if there is one.
 func (c *Conn) Send(req Message) (*Message, error) {
-	err := Transmit(c.conn, nil, req)
+	err := Transmit(c.conn, req)
 	if err != nil {
 		return nil, err
 	}

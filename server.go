@@ -8,26 +8,26 @@ import (
 )
 
 const maxPktLen = 1500
+const timeOut = 30
 
 // Handler is a type that handles CoAP messages.
 type Handler interface {
 	// Handle the message and optionally return a response message.
-	ServeCOAP(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message
+	ServeCOAP(l *net.TCPConn, m *Message) *Message
 }
 
-type funcHandler func(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message
+type funcHandler func(l *net.TCPConn, m *Message) *Message
 
-func (f funcHandler) ServeCOAP(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
-	return f(l, a, m)
+func (f funcHandler) ServeCOAP(l *net.TCPConn, m *Message) *Message {
+	return f(l, m)
 }
 
 // FuncHandler builds a handler from a function.
-func FuncHandler(f func(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message) Handler {
+func FuncHandler(f func(l *net.TCPConn, m *Message) *Message) Handler {
 	return funcHandler(f)
 }
 
-func handlePacket(l *net.UDPConn, data []byte, u *net.UDPAddr,
-	rh Handler) {
+func handlePacket(l *net.TCPConn, data []byte, rh Handler) {
 
 	msg, err := parseMessage(data)
 	if err != nil {
@@ -35,32 +35,26 @@ func handlePacket(l *net.UDPConn, data []byte, u *net.UDPAddr,
 		return
 	}
 
-	rv := rh.ServeCOAP(l, u, &msg)
+	rv := rh.ServeCOAP(l, &msg)
 	if rv != nil {
-		Transmit(l, u, *rv)
+		Transmit(l, *rv)
 	}
 }
 
 // Transmit a message.
-func Transmit(l *net.UDPConn, a *net.UDPAddr, m Message) error {
+func Transmit(l *net.TCPConn, m Message) error {
 	d, err := m.MarshalBinary()
 	if err != nil {
 		return err
 	}
-
-	if a == nil {
-		_, err = l.Write(d)
-	} else {
-		_, err = l.WriteTo(d, a)
-	}
+	_, err = l.Write(d)
 	return err
 }
 
 // Receive a message.
-func Receive(l *net.UDPConn, buf []byte) (Message, error) {
+func Receive(l *net.TCPConn, buf []byte) (Message, error) {
 	l.SetReadDeadline(time.Now().Add(ResponseTimeout))
-
-	nr, _, err := l.ReadFromUDP(buf)
+	nr, err := l.Read(buf)
 	if err != nil {
 		return Message{}, err
 	}
@@ -69,25 +63,26 @@ func Receive(l *net.UDPConn, buf []byte) (Message, error) {
 
 // ListenAndServe binds to the given address and serve requests forever.
 func ListenAndServe(n, addr string, rh Handler) error {
-	uaddr, err := net.ResolveUDPAddr(n, addr)
+	taddr, err := net.ResolveTCPAddr(n, addr)
 	if err != nil {
 		return err
 	}
 
-	l, err := net.ListenUDP(n, uaddr)
+	l, err := net.ListenTCP(n, taddr)
 	if err != nil {
 		return err
 	}
-
-	return Serve(l, rh)
+	c, err := l.AcceptTCP()
+	if err != nil {
+		return err
+	}
+	return Serve(c, rh)
 }
 
-// Serve processes incoming UDP packets on the given listener, and processes
-// these requests forever (or until the listener is closed).
-func Serve(listener *net.UDPConn, rh Handler) error {
+func Serve(conn *net.TCPConn, rh Handler) error {
 	buf := make([]byte, maxPktLen)
 	for {
-		nr, addr, err := listener.ReadFromUDP(buf)
+		nr, err := conn.Read(buf)
 		if err != nil {
 			if neterr, ok := err.(net.Error); ok && (neterr.Temporary() || neterr.Timeout()) {
 				time.Sleep(5 * time.Millisecond)
@@ -95,8 +90,26 @@ func Serve(listener *net.UDPConn, rh Handler) error {
 			}
 			return err
 		}
-		tmp := make([]byte, nr)
-		copy(tmp, buf)
-		go handlePacket(listener, tmp, addr, rh)
+		Data := (buf[:nr])
+		messnager := make(chan []byte)
+		go HeartBeating(conn, messnager, timeOut, rh)
+		go GravelChannel(Data, messnager)
 	}
+}
+
+func HeartBeating(conn *net.TCPConn, readerChannel chan []byte, timeout int, rh Handler) {
+	select {
+	case fk := <-readerChannel:
+		go handlePacket(conn, fk, rh)
+		conn.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+		break
+	case <-time.After(time.Second * 5):
+		conn.Close()
+	}
+
+}
+
+func GravelChannel(n []byte, mess chan []byte) {
+	mess <- n
+	close(mess)
 }

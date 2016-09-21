@@ -10,11 +10,11 @@ func TestPathMatching(t *testing.T) {
 
 	msgs := map[string]int{}
 
-	m.HandleFunc("/a", func(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
+	m.HandleFunc("/a", func(l *net.TCPConn, m *Message) *Message {
 		msgs["a"]++
 		return nil
 	})
-	m.HandleFunc("/b", func(l *net.UDPConn, a *net.UDPAddr, m *Message) *Message {
+	m.HandleFunc("/b", func(l *net.TCPConn, m *Message) *Message {
 		msgs["b"]++
 		return nil
 	})
