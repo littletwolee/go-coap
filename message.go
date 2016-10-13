@@ -48,6 +48,7 @@ type COAPCode uint8
 
 // Request Codes
 const (
+	EMPTY  COAPCode = 0
 	GET    COAPCode = 1
 	POST   COAPCode = 2
 	PUT    COAPCode = 3
@@ -343,6 +344,16 @@ type Message struct {
 	Token, Payload []byte
 
 	opts options
+}
+
+// IsEmpty returns true if this message is empty.
+func (m Message) IsEmpty() bool {
+	return m.Code == EMPTY
+}
+
+// IsAcknowledgement returns true if this message is acknowledgement.
+func (m Message) IsAcknowledgement() bool {
+	return m.Type == Acknowledgement
 }
 
 // IsConfirmable returns true if this message is confirmable.
