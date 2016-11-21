@@ -342,8 +342,8 @@ type Message struct {
 	MessageID uint16
 
 	Token, Payload []byte
-
-	opts options
+	Timestamp      string
+	opts           options
 }
 
 // IsEmpty returns true if this message is empty.
