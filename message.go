@@ -22,6 +22,8 @@ const (
 	Acknowledgement COAPType = 2
 	// Reset indicates a permanent negative acknowledgement.
 	Reset COAPType = 3
+
+	Ignored COAPType = 4
 )
 
 var typeNames = [256]string{
@@ -29,6 +31,7 @@ var typeNames = [256]string{
 	NonConfirmable:  "NonConfirmable",
 	Acknowledgement: "Acknowledgement",
 	Reset:           "Reset",
+	Ignored:         "Ignored",
 }
 
 func init() {
@@ -632,8 +635,8 @@ func (m *Message) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return err
 		}
-
 		if len(b) < length {
+
 			return errors.New("truncated")
 		}
 
