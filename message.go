@@ -340,13 +340,13 @@ func (o options) Minus(oid OptionID) options {
 
 // Message is a CoAP message.
 type Message struct {
-	Type      COAPType
-	Code      COAPCode
-	MessageID uint16
-
+	Type           COAPType
+	Code           COAPCode
+	MessageID      uint16
 	Token, Payload []byte
 	Timestamp      string
 	opts           options
+	Typestring     string
 }
 
 // IsEmpty returns true if this message is empty.
